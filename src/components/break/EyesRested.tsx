@@ -16,12 +16,15 @@ export default function EyesRested({
   banked,
   today,
   streak,
+  skipped,
   onBackToWork,
   onAddMore,
 }: {
   banked: number;
-  today?: number;
-  streak?: number;
+  today: number;
+  streak: number;
+  /** The user cut the look-away short. */
+  skipped: boolean;
   onBackToWork: () => void;
   onAddMore: () => void;
 }) {
@@ -32,7 +35,7 @@ export default function EyesRested({
     >
       <div className="flex w-full max-w-[344px] flex-col items-center gap-6">
         <h1 className="font-mono-b text-[44px] leading-[48px] tracking-[1px] text-white">
-          EYES RESTED
+          {skipped ? "BREAK CUT SHORT" : "EYES RESTED"}
         </h1>
 
         <div className="flex w-[280px] max-w-full flex-col gap-3">
@@ -46,7 +49,7 @@ export default function EyesRested({
             }
           />
           <StatPill
-            label={`${today ?? 12} today`}
+            label={`${today} today`}
             icon={
               <svg viewBox="0 0 20 20" fill="none" className="size-full">
                 <path d="M3 10.5L7.5 15L17 5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -54,7 +57,7 @@ export default function EyesRested({
             }
           />
           <StatPill
-            label={`${streak ?? 4} in a row`}
+            label={streak > 0 ? `${streak} in a row` : "Run broken"}
             icon={
               <svg viewBox="0 0 20 20" fill="none" className="size-full">
                 <path d="M3.57 5.71H16.43" stroke="white" strokeWidth="2" strokeLinecap="round" />
