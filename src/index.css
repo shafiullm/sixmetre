@@ -1,0 +1,153 @@
+@import 'tailwindcss';
+
+/* --- Fonts (self-hosted in public/fonts, latin subset from Google Fonts) ---
+   Declared twice per face: once under the plain family name, once under the
+   composite "Family:Style" name the Figma imports reference directly. */
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("/fonts/montserrat-800.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("/fonts/montserrat-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("/fonts/montserrat-600.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat";
+  src: url("/fonts/montserrat-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Code Pro";
+  src: url("/fonts/source-code-pro-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Code Pro";
+  src: url("/fonts/source-code-pro-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat:ExtraBold";
+  src: url("/fonts/montserrat-800.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 800;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat:Bold";
+  src: url("/fonts/montserrat-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat:SemiBold";
+  src: url("/fonts/montserrat-600.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Montserrat:Regular";
+  src: url("/fonts/montserrat-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Code Pro:Bold";
+  src: url("/fonts/source-code-pro-700.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Source Code Pro:Regular";
+  src: url("/fonts/source-code-pro-400.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+/* --- Design tokens (from the SIXMETRE mobile designs) --- */
+:root {
+  --ink: #101014;
+  --navy-0: #06375f;
+  --navy-1: #0b4f8f;
+  --sage-2: #8fb27a;
+  --sage-3: #dde8ce;
+  --green-a: #4c7a46;
+  --green-b: #93d3b9;
+  --green-c: #2f6b4a;
+  --accent: #f4622e;
+
+  --app-gradient: linear-gradient(
+    180deg,
+    var(--navy-0) 0%,
+    var(--navy-1) 35.211%,
+    var(--sage-2) 75.117%,
+    var(--sage-3) 100%
+  );
+  --break-gradient: linear-gradient(180deg, var(--green-b) 0%, var(--green-c) 100%);
+}
+
+.app-bg {
+  background-color: #07325a;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: "Montserrat:Regular", sans-serif;
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Font utility aliases matching the imported design's composite names */
+.font-display { font-family: "Montserrat:ExtraBold", sans-serif; }
+.font-bold-m { font-family: "Montserrat:Bold", sans-serif; }
+.font-semi { font-family: "Montserrat:SemiBold", sans-serif; }
+.font-body { font-family: "Montserrat:Regular", sans-serif; }
+.font-mono-b { font-family: "Source Code Pro:Bold", sans-serif; }
+.font-mono-r { font-family: "Source Code Pro:Regular", sans-serif; }
+
+/* Hide scrollbars until scrolling */
+* { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: transparent; border-radius: 999px; }
+*:hover::-webkit-scrollbar-thumb { background: rgba(16, 16, 20, 0.18); }
