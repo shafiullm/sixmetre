@@ -1,14 +1,31 @@
-import { useState, type ReactNode } from "react";
-import { logDay, weekReview } from "../data";
+import { useMemo, useState, type ReactNode } from "react";
+import { useApp } from "../state/AppState";
+import {
+  eventsOn,
+  screenSegments,
+  series,
+  todayStats,
+  weekReview as buildWeekReview,
+  type Range,
+  type WeekReview as WeekReviewData,
+} from "../lib/stats";
+import { duration } from "../lib/time";
 
-const RANGES = ["D", "W", "M", "Y"] as const;
+const RANGES: Range[] = ["D", "W", "M", "Y"];
+
+const CHART_TITLE: Record<Range, string> = {
+  D: "Look-aways today",
+  W: "Look-aways this week",
+  M: "Look-aways this month",
+  Y: "Look-aways this year",
+};
 
 function Segmented({
   value,
   onChange,
 }: {
-  value: string;
-  onChange: (v: string) => void;
+  value: Range;
+  onChange: (v: Range) => void;
 }) {
   return (
     <div className="flex gap-1 rounded-[14px] bg-white/[0.16] p-1.5">
@@ -16,6 +33,7 @@ function Segmented({
         <button
           key={r}
           onClick={() => onChange(r)}
+          aria-pressed={value === r}
           className={`flex-1 rounded-[10px] py-3 font-bold-m text-[11px] uppercase tracking-[0.6px] transition-colors ${
             value === r ? "bg-white text-[#101014]" : "text-white/60 hover:text-white"
           }`}
@@ -49,29 +67,49 @@ function StatChip({
   );
 }
 
-function WeekReview() {
-  const max = Math.max(...weekReview.days.map((d) => d.kept + d.missed));
+function WeekReview({
+  data,
+  target,
+  onTarget,
+}: {
+  data: WeekReviewData;
+  target: number;
+  onTarget: (v: number) => void;
+}) {
+  const max = Math.max(1, ...data.days.map((d) => d.kept + d.missed));
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(target);
+  const met = !data.empty && data.keptPercent >= target;
+
   return (
     <div className="rounded-[20px] bg-white p-6">
       <p className="font-bold-m text-[11px] uppercase tracking-[0.6px] text-[rgba(16,16,20,0.45)]">
-        {weekReview.range}
+        {data.range}
       </p>
       <h3 className="mt-2 font-display text-[28px] leading-[32px] tracking-[-0.5px] text-[#101014]">
-        You kept <span className="text-[#4c7a46]">{weekReview.keptPercent}%</span> of
-        your breaks
+        {data.empty ? (
+          "No look-aways logged this week yet."
+        ) : (
+          <>
+            You kept <span className="text-[#4c7a46]">{data.keptPercent}%</span> of your
+            breaks
+          </>
+        )}
       </h3>
 
       <div className="mt-6 flex items-end justify-between gap-3">
-        {weekReview.days.map((d, i) => {
+        {data.days.map((d, i) => {
           const total = d.kept + d.missed;
+          const segments = total === 0 ? 0 : Math.max(1, Math.round((total / max) * 14));
+          const keptSegments = total === 0 ? 0 : Math.round(segments * (d.kept / total));
           return (
             <div key={i} className="flex flex-1 flex-col items-center gap-2">
-              <div className="flex h-28 w-full max-w-8 flex-col justify-end gap-0.5" style={{ height: 112 }}>
-                {Array.from({ length: Math.round((total / max) * 14) }).map((_, k, arr) => (
+              <div className="flex w-full max-w-8 flex-col justify-end gap-0.5" style={{ height: 112 }}>
+                {Array.from({ length: segments }).map((_, k) => (
                   <span
                     key={k}
                     className={`h-1 w-full rounded-full ${
-                      k < arr.length * (d.kept / total) ? "bg-[#8fb27a]" : "bg-[#f4622e]"
+                      k >= segments - keptSegments ? "bg-[#8fb27a]" : "bg-[#f4622e]"
                     }`}
                   />
                 ))}
@@ -89,46 +127,156 @@ function WeekReview() {
           <p className="font-bold-m text-[11px] uppercase tracking-[0.6px] text-[rgba(16,16,20,0.45)]">
             Longest stretch
           </p>
-          <p className="mt-1 font-body text-[15px] text-[#101014]">
-            {weekReview.longestStretch}
-          </p>
+          <p className="mt-1 font-body text-[15px] text-[#101014]">{data.longestStretch}</p>
         </div>
         <div>
           <p className="font-bold-m text-[11px] uppercase tracking-[0.6px] text-[rgba(16,16,20,0.45)]">
             Worst hour
           </p>
-          <p className="mt-1 font-body text-[15px] text-[#101014]">
-            {weekReview.worstHour}
-          </p>
+          <p className="mt-1 font-body text-[15px] text-[#101014]">{data.worstHour}</p>
         </div>
         <div className="flex items-center gap-3">
           <span className="font-bold-m text-[11px] uppercase tracking-[0.6px] text-[rgba(16,16,20,0.45)]">
             vs last week
           </span>
           <span className="h-2 flex-1 overflow-hidden rounded-full bg-[rgba(16,16,20,0.1)]">
-            <span className="block h-full bg-[#8fb27a]" style={{ width: `${50 + weekReview.vsLastWeek}%` }} />
+            <span
+              className={`block h-full ${data.vsLastWeek < 0 ? "bg-[#f4622e]" : "bg-[#8fb27a]"}`}
+              style={{ width: `${Math.min(100, Math.max(4, 50 + data.vsLastWeek))}%` }}
+            />
           </span>
-          <span className="font-mono-b text-[16px] text-[#4c7a46]">+{weekReview.vsLastWeek}%</span>
+          <span
+            className={`font-mono-b text-[16px] ${
+              data.vsLastWeek < 0 ? "text-[#f4622e]" : "text-[#4c7a46]"
+            }`}
+          >
+            {data.vsLastWeek > 0 ? "+" : ""}
+            {data.vsLastWeek}%
+          </span>
+        </div>
+
+        <div>
+          <p className="font-bold-m text-[11px] uppercase tracking-[0.6px] text-[rgba(16,16,20,0.45)]">
+            Target
+          </p>
+          <p className="mt-1 font-body text-[15px] text-[#101014]">
+            {data.empty
+              ? `Aiming to keep ${target}% of your breaks.`
+              : met
+                ? `Clear of your ${target}% target, by ${data.keptPercent - target} points.`
+                : `${target - data.keptPercent} points short of your ${target}% target.`}
+          </p>
+          <span className="mt-2 block h-2 overflow-hidden rounded-full bg-[rgba(16,16,20,0.1)]">
+            <span
+              className={`block h-full ${met ? "bg-[#8fb27a]" : "bg-[#0b4f8f]"}`}
+              style={{ width: `${Math.min(100, (data.keptPercent / Math.max(1, target)) * 100)}%` }}
+            />
+          </span>
         </div>
       </div>
 
-      <button className="mt-6 h-14 w-full rounded-full bg-[#101014] font-semi text-[15px] text-white transition-transform hover:scale-[1.01]">
-        Set next week's target
-      </button>
+      {editing ? (
+        <div className="mt-6 rounded-[16px] bg-[rgba(16,16,20,0.05)] p-4">
+          <p className="font-bold-m text-[11px] uppercase tracking-[0.6px] text-[rgba(16,16,20,0.45)]">
+            Next week's target
+          </p>
+          <div className="mt-3 flex items-center gap-4">
+            <button
+              onClick={() => setDraft((v) => Math.max(50, v - 5))}
+              aria-label="Lower target"
+              className="grid size-10 shrink-0 place-items-center rounded-full bg-white font-bold-m text-[18px] text-[#101014]"
+            >
+              −
+            </button>
+            <span className="flex-1 text-center font-mono-b text-[32px] text-[#101014]">
+              {draft}%
+            </span>
+            <button
+              onClick={() => setDraft((v) => Math.min(100, v + 5))}
+              aria-label="Raise target"
+              className="grid size-10 shrink-0 place-items-center rounded-full bg-white font-bold-m text-[18px] text-[#101014]"
+            >
+              +
+            </button>
+          </div>
+          <div className="mt-4 flex gap-3">
+            <button
+              onClick={() => {
+                onTarget(draft);
+                setEditing(false);
+              }}
+              className="h-12 flex-1 rounded-full bg-[#101014] font-semi text-[15px] text-white"
+            >
+              Set {draft}%
+            </button>
+            <button
+              onClick={() => {
+                setDraft(target);
+                setEditing(false);
+              }}
+              className="h-12 rounded-full border border-[rgba(16,16,20,0.2)] px-5 font-semi text-[15px] text-[#101014]"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => {
+            setDraft(target);
+            setEditing(true);
+          }}
+          className="mt-6 h-14 w-full rounded-full bg-[#101014] font-semi text-[15px] text-white transition-transform hover:scale-[1.01]"
+        >
+          Set next week's target
+        </button>
+      )}
     </div>
   );
 }
 
 export default function Log() {
-  const [range, setRange] = useState("D");
+  const { events, screen, settings, now, updateSettings } = useApp();
+  const [range, setRange] = useState<Range>("D");
   const [reviewOpen, setReviewOpen] = useState(false);
 
+  const chart = useMemo(
+    () => series(events, range, settings, now),
+    [events, range, settings, now],
+  );
+  const stats = useMemo(
+    () => todayStats(events, screen, settings, now),
+    [events, screen, settings, now],
+  );
+  const review = useMemo(
+    () => buildWeekReview(events, settings, now),
+    [events, settings, now],
+  );
+  const segments = useMemo(() => screenSegments(events, now), [events, now]);
+
+  // Chips summarise whatever range is selected, not always today.
+  const chipCounts = useMemo(() => {
+    if (range === "D") {
+      const todays = eventsOn(events, now);
+      return {
+        kept: todays.filter((e) => e.outcome === "kept").length,
+        missed: todays.filter((e) => e.outcome === "missed").length,
+        skipped: todays.filter((e) => e.outcome === "skipped").length,
+      };
+    }
+    const keptTotal = chart.kept.reduce((a, b) => a + b, 0);
+    const missedTotal = chart.missed.reduce((a, b) => a + b, 0);
+    return { kept: keptTotal, missed: missedTotal, skipped: 0 };
+  }, [range, events, now, chart]);
+
+  const maxBar = Math.max(1, ...chart.kept.map((k, i) => k + chart.missed[i]));
+
   return (
-    <div className="mx-auto flex h-full max-w-[1120px] flex-col px-6 py-6 md:px-12 lg:h-auto lg:block lg:py-14">
+    <div className="mx-auto flex max-w-[1120px] flex-col px-6 py-6 md:px-12 lg:py-14">
       <div className="mb-4 flex items-center justify-between lg:mb-6">
         <h1 className="font-bold-m text-[22px] text-white">Log</h1>
         <span className="font-bold-m text-[11px] uppercase tracking-[0.6px] text-white/75">
-          {logDay.date}
+          {chart.caption}
         </span>
       </div>
 
@@ -141,10 +289,10 @@ export default function Log() {
           {/* Look-aways chart */}
           <div className="rounded-[20px] bg-white px-6 py-5 lg:py-7">
             <p className="font-bold-m text-[11px] uppercase tracking-[0.6px] text-[rgba(16,16,20,0.45)]">
-              Look-aways today
+              {CHART_TITLE[range]}
             </p>
             <p className="mt-2 font-mono-b text-[44px] leading-none tracking-[-2px] text-[#101014] lg:text-[56px]">
-              {logDay.lookAwaysToday}
+              {chart.total}
             </p>
             <div className="relative mt-4 h-[120px] lg:mt-6">
               {[0, 60, 119].map((t) => (
@@ -154,15 +302,34 @@ export default function Log() {
                   style={{ top: t }}
                 />
               ))}
-              <div className="flex h-full items-end justify-between px-8">
-                {logDay.bars.map((h, i) => (
-                  <span key={i} className="w-2.5 rounded-sm bg-[#0b4f8f]" style={{ height: h }} />
-                ))}
+              <div className="flex h-full items-end justify-between gap-[3px]">
+                {chart.kept.map((k, i) => {
+                  const missed = chart.missed[i];
+                  return (
+                    <span
+                      key={i}
+                      title={`${chart.labels[i]} — ${k} kept, ${missed} missed`}
+                      className="flex flex-1 flex-col justify-end"
+                      style={{ height: "100%" }}
+                    >
+                      {missed > 0 && (
+                        <span
+                          className="block w-full rounded-t-sm bg-[#f4622e]"
+                          style={{ height: `${(missed / maxBar) * 100}%` }}
+                        />
+                      )}
+                      <span
+                        className={`block w-full bg-[#0b4f8f] ${missed > 0 ? "" : "rounded-t-sm"}`}
+                        style={{ height: `${(k / maxBar) * 100}%` }}
+                      />
+                    </span>
+                  );
+                })}
               </div>
             </div>
             <div className="mt-3 flex justify-between font-bold-m text-[11px] uppercase tracking-[0.6px] text-[rgba(16,16,20,0.4)]">
-              {["00", "06", "12", "18", "24"].map((t) => (
-                <span key={t}>{t}</span>
+              {chart.ticks.map((t, i) => (
+                <span key={i}>{t}</span>
               ))}
             </div>
           </div>
@@ -170,25 +337,36 @@ export default function Log() {
           {/* Time at screen */}
           <div className="rounded-[20px] bg-white px-6 py-5 lg:p-6">
             <p className="font-bold-m text-[11px] uppercase tracking-[0.6px] text-[rgba(16,16,20,0.45)]">
-              Time at screen
+              Time at screen today
             </p>
             <p className="mt-2 font-mono-b text-[28px] leading-tight text-[#101014]">
-              {logDay.screenTime}
+              {duration(stats.screenSeconds)}
             </p>
-            <div className="mt-4 flex h-7 overflow-hidden rounded">
-              {logDay.screenSegments.map((w, i) => (
-                <span key={i} className="flex">
-                  <span className="h-7 bg-[#0b4f8f]" style={{ width: w }} />
-                  {i < logDay.screenSegments.length - 1 && (
-                    <span className={`h-7 w-[3px] ${i % 3 === 1 ? "bg-[#f4622e]" : "bg-[#8fb27a]"}`} />
-                  )}
-                </span>
-              ))}
-            </div>
+            {segments.length > 0 ? (
+              <div className="mt-4 flex h-7 gap-[3px] overflow-hidden rounded">
+                {segments.map((s, i) => (
+                  <span key={i} className="flex min-w-0 flex-1">
+                    <span className="h-7 flex-1 bg-[#0b4f8f]" />
+                    <span
+                      className={`h-7 w-[3px] shrink-0 ${
+                        s.outcome === "kept"
+                          ? "bg-[#8fb27a]"
+                          : s.outcome === "missed"
+                            ? "bg-[#f4622e]"
+                            : "bg-[rgba(16,16,20,0.25)]"
+                      }`}
+                    />
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-4 font-body text-[14px] text-[rgba(16,16,20,0.5)]">
+                No work blocks logged today yet.
+              </p>
+            )}
             <div className="mt-3 flex justify-between font-bold-m text-[11px] uppercase tracking-[0.6px] text-[rgba(16,16,20,0.4)]">
-              {["08:00", "12:00", "16:00", "20:00"].map((t) => (
-                <span key={t}>{t}</span>
-              ))}
+              <span>{settings.scheduleFrom}</span>
+              <span>{settings.scheduleTo}</span>
             </div>
           </div>
 
@@ -196,7 +374,7 @@ export default function Log() {
           <div className="grid w-full grid-cols-3 gap-3">
             <StatChip
               tone="kept"
-              label={`Kept ${logDay.kept}`}
+              label={`Kept ${chipCounts.kept}`}
               icon={
                 <svg viewBox="0 0 20 20" className="size-full" fill="none">
                   <path d="M10 2.5L11.545 7.545H16.82L12.637 10.61L14.18 15.655L10 12.59L5.82 15.655L7.363 10.61L3.18 7.545H8.455Z" fill="#4C7A46"/>
@@ -205,7 +383,7 @@ export default function Log() {
             />
             <StatChip
               tone="missed"
-              label={`Missed ${logDay.missed}`}
+              label={`Missed ${chipCounts.missed}`}
               icon={
                 <svg viewBox="0 0 20 20" className="size-full" fill="none">
                   <path d="M10 3C10 3 14.5 3.5 16.5 7.5" stroke="white" strokeWidth="1.75" strokeLinecap="round"/>
@@ -218,7 +396,7 @@ export default function Log() {
             />
             <StatChip
               tone="skipped"
-              label={`Skipped ${logDay.skipped}`}
+              label={`Skipped ${chipCounts.skipped}`}
               icon={
                 <svg viewBox="0 0 20 20" className="size-full" fill="none">
                   <path d="M5 5.5L11.5 10L5 14.5V5.5Z" fill="currentColor"/>
@@ -242,7 +420,11 @@ export default function Log() {
 
         {/* Week in review — inline side panel on desktop */}
         <div className="hidden lg:block">
-          <WeekReview />
+          <WeekReview
+            data={review}
+            target={settings.weeklyTarget}
+            onTarget={(weeklyTarget) => updateSettings({ weeklyTarget })}
+          />
         </div>
       </div>
 
@@ -269,7 +451,11 @@ export default function Log() {
               </button>
             </div>
             <div className="[&>div]:rounded-none [&>div]:pt-3">
-              <WeekReview />
+              <WeekReview
+            data={review}
+            target={settings.weeklyTarget}
+            onTarget={(weeklyTarget) => updateSettings({ weeklyTarget })}
+          />
             </div>
           </div>
         </div>

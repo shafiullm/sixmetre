@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import Logo from "../imports/Logo";
-import { user } from "../data";
+import { useApp } from "../state/AppState";
+import Avatar from "./Avatar";
 
 export type View = "today" | "log" | "learn" | "you";
 
@@ -44,6 +45,8 @@ export default function Sidebar({
   active: View;
   onNavigate: (v: View) => void;
 }) {
+  const { settings } = useApp();
+
   return (
     <>
       {/* Desktop — left sidebar */}
@@ -86,15 +89,15 @@ export default function Sidebar({
           onClick={() => onNavigate("you")}
           className="flex items-center justify-start gap-3 rounded-2xl px-2 py-2 text-left transition-colors hover:bg-white/10"
         >
-          <img
-            src={user.avatar}
-            alt={user.name}
-            className="size-9 shrink-0 rounded-full bg-white/20 object-cover"
+          <Avatar
+            src={settings.avatar}
+            name={settings.name}
+            className="size-9 shrink-0 rounded-full text-[13px]"
           />
           <div className="min-w-0">
-            <div className="font-semi truncate text-[13px] text-white">{user.name}</div>
+            <div className="font-semi truncate text-[13px] text-white">{settings.name}</div>
             <div className="font-body truncate text-[11px] text-white/50">
-              {user.role}
+              {settings.role}
             </div>
           </div>
         </button>
